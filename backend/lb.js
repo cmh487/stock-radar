@@ -8,8 +8,15 @@ let alertCtx = null;
 
 function getConfig() {
   if (!config) {
-    config = Config.fromApikeyEnv();
+    config = Config.fromApikey(
+      process.env.LONGBRIDGE_APP_KEY,
+      process.env.LONGBRIDGE_APP_SECRET,
+      process.env.LONGBRIDGE_ACCESS_TOKEN,
+    );
   }
+  console.log("🚀Harrison ~ getConfig ~ config:", config,  process.env.LONGBRIDGE_APP_KEY,
+      process.env.LONGBRIDGE_APP_SECRET,
+      process.env.LONGBRIDGE_ACCESS_TOKEN,);
   return config;
 }
 
@@ -27,9 +34,9 @@ async function getTradeCtx() {
   return tradeCtx;
 }
 
-async function getMarketCtx() {
+function getMarketCtx() {
   if (!marketCtx) {
-    marketCtx = await MarketContext.new(getConfig());
+    marketCtx = MarketContext.new(getConfig());
   }
   return marketCtx;
 }

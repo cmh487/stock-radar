@@ -4,10 +4,13 @@ async function registerMarketRoutes(app) {
   // GET /api/market/temperature
   app.get("/api/market/temperature", async (req, res) => {
     try {
-      const ctx = await getMarketCtx();
+      const ctx = getMarketCtx();
+      console.log("🚀Harrison ~ registerMarketRoutes ~ ctx:", ctx)
       const data = await ctx.marketTemperature("US");
       res.json(data);
     } catch (err) {
+          const ctx = getMarketCtx();
+      console.log("🚀Harrison ~ registerMarketRoutes ~ ctx:", ctx)
       console.error("[market/temperature]", err.message);
       res.status(500).json({ error: "Failed to fetch market temperature" });
     }
