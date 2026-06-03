@@ -1,4 +1,13 @@
 const { Config, QuoteContext, TradeContext, MarketContext, AlertContext, SubType, Period } = require("longbridge");
+const HttpsProxyAgent = require("https-proxy-agent");
+
+// Corporate proxy support (local dev)
+const proxyUrl = process.env.https_proxy || process.env.http_proxy;
+const proxyAgent = proxyUrl ? new HttpsProxyAgent(proxyUrl) : undefined;
+
+if (proxyAgent) {
+  console.log(`[proxy] Using corporate proxy: ${proxyUrl}`);
+}
 
 let config = null;
 let quoteCtx = null;
@@ -8,28 +17,32 @@ let alertCtx = null;
 
 function getConfig() {
   if (!config) {
-    config = Config.fromApikey(
-      process.env.LONGBRIDGE_APP_KEY,
-      process.env.LONGBRIDGE_APP_SECRET,
-      process.env.LONGBRIDGE_ACCESS_TOKEN,
-    );
+    config = Config.fromApikeyEnv();
+
+    // If proxy is configured, set the HTTP agent on the config
+    // The Longbridge SDK respects the https_proxy / http_proxy env vars
+    // for its HTTP calls. For WebSocket, we set it via global agent below.
+    if (proxyAgent) {
+      // Set global agent so all outbound HTTPS connections use the proxy
+      const https = require("https");
+      const http = require("http");
+      https.globalAgent = proxyAgent;
+      http.globalAgent = proxyAgent;
+    }
   }
-  console.log("🚀Harrison ~ getConfig ~ config:", config,  process.env.LONGBRIDGE_APP_KEY,
-      process.env.LONGBRIDGE_APP_SECRET,
-      process.env.LONGBRIDGE_ACCESS_TOKEN,);
   return config;
 }
 
-async function getQuoteCtx() {
+function getQuoteCtx() {
   if (!quoteCtx) {
-    quoteCtx = await QuoteContext.new(getConfig());
+    quoteCtx = QuoteContext.new(getConfig());
   }
   return quoteCtx;
 }
 
-async function getTradeCtx() {
+function getTradeCtx() {
   if (!tradeCtx) {
-    tradeCtx = await TradeContext.new(getConfig());
+    tradeCtx = TradeContext.new(getConfig());
   }
   return tradeCtx;
 }
@@ -41,9 +54,9 @@ function getMarketCtx() {
   return marketCtx;
 }
 
-async function getAlertCtx() {
+function getAlertCtx() {
   if (!alertCtx) {
-    alertCtx = await AlertContext.new(getConfig());
+    alertCtx = AlertContext.new(getConfig());
   }
   return alertCtx;
 }

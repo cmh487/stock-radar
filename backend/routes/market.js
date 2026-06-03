@@ -1,16 +1,13 @@
 const { getQuoteCtx, getMarketCtx } = require("../lb");
-
+const { Market } = require("longbridge");
 async function registerMarketRoutes(app) {
   // GET /api/market/temperature
   app.get("/api/market/temperature", async (req, res) => {
     try {
-      const ctx = getMarketCtx();
-      console.log("🚀Harrison ~ registerMarketRoutes ~ ctx:", ctx)
-      const data = await ctx.marketTemperature("US");
+      const ctx = getQuoteCtx();
+      const data = await ctx.marketTemperature(Market.US);
       res.json(data);
     } catch (err) {
-          const ctx = getMarketCtx();
-      console.log("🚀Harrison ~ registerMarketRoutes ~ ctx:", ctx)
       console.error("[market/temperature]", err.message);
       res.status(500).json({ error: "Failed to fetch market temperature" });
     }
@@ -19,7 +16,7 @@ async function registerMarketRoutes(app) {
   // GET /api/market/movers
   app.get("/api/market/movers", async (req, res) => {
     try {
-      const ctx = await getMarketCtx();
+      const ctx = getMarketCtx();
       const data = await ctx.topMovers({ markets: ["US"], limit: 10 });
       res.json(data);
     } catch (err) {

@@ -12,7 +12,8 @@
     "express": "^4.21.0",
     "cors": "^2.8.5",
     "helmet": "^7.1.0",
-    "longbridge": "^4.2.1"
+    "longbridge": "^4.2.1",
+    "https-proxy-agent": "^5.0.0"
   },
   "engines": {
     "node": ">=20.0.0"
