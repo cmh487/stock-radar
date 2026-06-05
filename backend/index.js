@@ -32,7 +32,7 @@ app.use(
       cb(new Error("Not allowed by CORS"));
     },
     credentials: true,
-  })
+  }),
 );
 
 // Parse JSON bodies
@@ -53,7 +53,7 @@ app.use("/api", (req, res, next) => {
 
   const auth = req.headers.authorization;
   if (!auth || auth !== `Bearer ${secret}`) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return res.status(401).json({ error: "Unauthorized", auth ,secret});
   }
   next();
 });
