@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 export interface RealtimeQuote {
   symbol: string
@@ -25,7 +25,7 @@ export function useRealtimeQuotes(symbols: string[]) {
   const connect = useCallback(() => {
     if (!symbols.length) return
 
-    const url = `/api/market/stream?symbols=${symbols.join(",")}`
+    const url = `/api/stream?symbols=${symbols.join(",")}`
     const es = new EventSource(url)
 
     es.onopen = () => setConnected(true)
@@ -45,7 +45,7 @@ export function useRealtimeQuotes(symbols: string[]) {
       setConnected(false)
       es.close()
       // Reconnect after 5s
-      setTimeout(connect, 5000)
+      setTimeout(connect, 50000)
     }
 
     eventSourceRef.current = es

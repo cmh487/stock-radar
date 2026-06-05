@@ -27,10 +27,11 @@ async function registerStreamRoutes(app) {
 
     let ctx;
     try {
-      ctx = await getQuoteCtx();
+      ctx = getQuoteCtx();
 
       // Set up quote push handler
       const handler = (_, event) => {
+        console.log("🚀Harrison ~ handler ~ event:", event);
         try {
           const data = {
             type: "quote",
@@ -51,6 +52,10 @@ async function registerStreamRoutes(app) {
 
       ctx.setOnQuote(handler);
       await ctx.subscribe(symbols, [SubType.Quote]);
+      // const subscriptions = await ctx.subscriptions();
+      // if (subscriptions) {
+      //   res.write(`subscriptions: ${JSON.stringify(subscriptions)}\n\n`);
+      // }
 
       // Heartbeat every 30s
       const heartbeat = setInterval(() => {

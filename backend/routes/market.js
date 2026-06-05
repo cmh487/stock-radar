@@ -17,7 +17,7 @@ async function registerMarketRoutes(app) {
   app.get("/api/market/movers", async (req, res) => {
     try {
       const ctx = getMarketCtx();
-      const data = await ctx.topMovers({ markets: ["US"], limit: 10 });
+      const data = await ctx.topMovers(["US"], 1, undefined, 10);
       res.json(data);
     } catch (err) {
       console.error("[market/movers]", err.message);
@@ -28,9 +28,8 @@ async function registerMarketRoutes(app) {
   // GET /api/market/hot?size=10
   app.get("/api/market/hot", async (req, res) => {
     try {
-      const size = parseInt(req.query.size) || 10;
       const ctx = await getMarketCtx();
-      const data = await ctx.rankList({ key: "hot_all-us", size });
+      const data = await ctx.rankList('hot_all-us',true);
       res.json(data);
     } catch (err) {
       console.error("[market/hot]", err.message);
