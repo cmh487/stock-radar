@@ -30,18 +30,23 @@ async function registerStreamRoutes(app) {
       ctx = getQuoteCtx();
 
       // Set up quote push handler
+      // PushQuoteEvent shape: { symbol: string, data: PushQuote }
+      // PushQuote shape: { lastDone, open, high, low, volume, turnover, timestamp, ... }
       const handler = (_, event) => {
         try {
+          const q = event.data; // PushQuote object
+          const lastDone = q.lastDone?.toString();
+          const prevClose = parseFloat(lastDone || "0");
           const data = {
             type: "quote",
             symbol: event.symbol,
-            lastDone: event.lastDone?.toString(),
-            open: event.open?.toString(),
-            high: event.high?.toString(),
-            low: event.low?.toString(),
-            volume: event.volume?.toString(),
-            turnover: event.turnover?.toString(),
-            timestamp: event.timestamp?.toString(),
+            lastDone,
+            open: q.open?.toString(),
+            high: q.high?.toString(),
+            low: q.low?.toString(),
+            volume: q.volume?.toString(),
+            turnover: q.turnover?.toString(),
+            timestamp: q.timestamp?.toISOString?.() || q.timestamp?.toString(),
           };
           res.write(`data: ${JSON.stringify(data)}\n\n`);
         } catch (e) {

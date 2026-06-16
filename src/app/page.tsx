@@ -52,14 +52,17 @@ export default function Dashboard() {
           {movers?.events?.slice(0, 6).map((item) => {
             const sym = item.stock?.symbol || "";
             const live = quotes[sym];
+            const lastDone = parseFloat(live?.lastDone || item.stock?.lastDone || "0");
+            const prevClose = parseFloat(item.stock?.prevClose || "0");
+            const changePercent = prevClose !== 0 ? ((lastDone - prevClose) / prevClose) * 100 : 0;
             return (
               <StockCard
                 key={sym}
                 symbol={sym}
                 name={item.stock?.name || ""}
-                price={parseFloat(live?.lastDone || item.stock?.last_done || "0")}
-                changePercent={parseFloat(item.stock?.change || "0") * 100}
-                reason={item.alert_reason}
+                price={lastDone}
+                changePercent={changePercent}
+                reason={item.alert_reason || item.alertReason}
               />
             );
           }) || <div className="col-span-3 text-sm text-zinc-500">Loading movers...</div>}
@@ -73,13 +76,16 @@ export default function Dashboard() {
           {hot?.lists?.slice(0, 9).map((item) => {
             const sym = item.symbol || "";
             const live = quotes[sym];
+            const lastDone = parseFloat(live?.lastDone || item.lastDone || "0");
+            // chg is a decimal ratio from the rank API e.g. "0.018" = +1.8%
+            const changePercent = parseFloat(item.chg || "0") * 100;
             return (
               <StockCard
                 key={sym}
                 symbol={sym}
                 name={item.name || ""}
-                price={parseFloat(live?.lastDone || item.lastDone || "0")}
-                changePercent={parseFloat(item.chg || "0") * 100}
+                price={lastDone}
+                changePercent={changePercent}
                 compact
               />
             );

@@ -3,12 +3,14 @@
 import { useQuery } from "@tanstack/react-query"
 import { StockCard } from "@/components/cards/stock-card"
 import { useState } from "react"
+import type { WatchlistGroup } from "@/app/types"
 
 export default function WatchlistPage() {
   const [newGroupName, setNewGroupName] = useState("")
 
   const { data, refetch } = useQuery({
     queryKey: ["watchlist"],
+    // watchlist() returns WatchlistGroup[] directly (array)
     queryFn: () => fetch("/api/watchlist").then((r) => r.json()),
   })
 
@@ -46,18 +48,19 @@ export default function WatchlistPage() {
         </button>
       </div>
 
-      {/* Groups */}
-      {data?.groups?.map((group: any) => (
+      {/* Groups — SDK WatchlistGroup[]: id, name, securities[]{symbol, name, watchedPrice, ...} */}
+      {Array.isArray(data) && data.length > 0 ? data.map((group: WatchlistGroup) => (
         <section key={group.id} className="space-y-3">
           <h2 className="text-lg font-semibold">{group.name}</h2>
           {group.securities?.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {group.securities.map((sec: any) => (
+              {group.securities.map((sec) => (
                 <StockCard
                   key={sec.symbol}
                   symbol={sec.symbol}
                   name={sec.name || sec.symbol}
-                  price={parseFloat(sec.watched_price || "0")}
+                  // watchedPrice is Decimal→string | null (was watched_price in old code)
+                  price={sec.watchedPrice ? parseFloat(sec.watchedPrice) : 0}
                   changePercent={0}
                   compact
                 />
@@ -67,7 +70,7 @@ export default function WatchlistPage() {
             <p className="text-sm text-zinc-500">No stocks in this group yet. Search for stocks to add.</p>
           )}
         </section>
-      )) || (
+      )) : (
         <div className="text-center py-12">
           <p className="text-zinc-400">No watchlist groups yet.</p>
           <p className="text-xs text-zinc-500 mt-1">Create a group above to start tracking stocks.</p>

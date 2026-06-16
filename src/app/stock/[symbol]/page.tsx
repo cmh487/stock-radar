@@ -1,11 +1,11 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
-import { useParams } from "next/navigation"
+import type { IntradayResponse, StockInfo, StockQuote } from "@/app/types"
 import { SignalCard } from "@/components/cards/signal-card"
 import { TooltipTerm } from "@/components/learning/tooltip-term"
-import { formatPrice, formatPercent } from "@/lib/utils"
-import { cn } from "@/lib/utils"
+import { useApiQuery } from "@/hooks/useApiQuery"
+import { cn, formatPercent, formatPrice } from "@/lib/utils"
+import { useParams } from "next/navigation"
 import { useState } from "react"
 
 const chartTabs = ["Today", "5D", "1M", "6M", "1Y"] as const
@@ -14,26 +14,44 @@ export default function StockDetailPage() {
   const { symbol } = useParams<{ symbol: string }>()
   const [chartTab, setChartTab] = useState<string>("Today")
 
-  const { data: quote } = useQuery({
-    queryKey: ["quote", symbol],
-    queryFn: () => fetch(`/api/stock/${symbol}/quote`).then((r) => r.json()),
-    refetchInterval: 15000,
-  })
+  const { data: quote } = useApiQuery<StockQuote>(
+    ["quote", symbol],
+    `/api/stock/${symbol}/quote`,
+    { refetchInterval: 15000 }
+  )
 
-  const { data: info } = useQuery({
-    queryKey: ["info", symbol],
-    queryFn: () => fetch(`/api/stock/${symbol}/info`).then((r) => r.json()),
-  })
+  const { data: info } = useApiQuery<StockInfo>(
+    ["info", symbol],
+    `/api/stock/${symbol}/info`
+  )
 
-  const { data: intraday } = useQuery({
-    queryKey: ["intraday", symbol],
-    queryFn: () => fetch(`/api/stock/${symbol}/intraday`).then((r) => r.json()),
-    enabled: chartTab === "Today",
-  })
+  // intraday() returns IntradayLine[] directly
+  const { data: intraday } = useApiQuery<IntradayResponse>(
+    ["intraday", symbol],
+    `/api/stock/${symbol}/intraday`,
+    { enabled: chartTab === "Today" }
+  )
 
-  const price = parseFloat(quote?.last_done || "0")
-  const change = parseFloat(quote?.change_rate || "0") * 100
+  // SDK SecurityQuote fields are camelCase Decimal strings
+  const price = parseFloat(quote?.lastDone || "0")
+  const prevClose = parseFloat(quote?.prevClose || "0")
+  // Use backend-computed changeRate if available, otherwise compute here
+  const change = quote?.changeRate
+    ? parseFloat(quote.changeRate) * 100
+    : prevClose !== 0 ? ((price - prevClose) / prevClose) * 100 : 0
   const isPositive = change >= 0
+
+  // Compute market cap from totalShares × lastDone (staticInfo has no market_cap)
+  const marketCap = info && quote
+    ? info.totalShares * price
+    : null
+
+  const formatMarketCapValue = (cap: number): string => {
+    if (cap >= 1e12) return `$${(cap / 1e12).toFixed(2)}T`
+    if (cap >= 1e9) return `$${(cap / 1e9).toFixed(2)}B`
+    if (cap >= 1e6) return `$${(cap / 1e6).toFixed(2)}M`
+    return `$${cap.toFixed(0)}`
+  }
 
   return (
     <div className="space-y-6">
@@ -41,12 +59,16 @@ export default function StockDetailPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">{symbol}</h1>
-          <p className="text-sm text-zinc-400">{info?.name || "Loading..."}</p>
+          {/* SDK SecurityStaticInfo has nameEn */}
+          <p className="text-sm text-zinc-400">{info?.nameEn || "Loading..."}</p>
         </div>
         <div className="text-right">
           <div className="text-3xl font-bold">{formatPrice(price)}</div>
           <div className={cn("text-sm font-medium", isPositive ? "text-green-400" : "text-red-400")}>
             {formatPercent(change)}
+          </div>
+          <div className="text-xs text-zinc-500 mt-0.5">
+            Prev close: {formatPrice(prevClose)}
           </div>
         </div>
       </div>
@@ -74,7 +96,10 @@ export default function StockDetailPage() {
         {/* Chart placeholder */}
         <div className="h-64 flex items-center justify-center border border-dashed border-zinc-700 rounded-lg">
           <p className="text-zinc-500 text-sm">
-            {intraday ? `${intraday.lines?.length || 0} data points loaded` : "Loading chart data..."}
+            {/* IntradayResponse is IntradayLine[] — access .length directly */}
+            {Array.isArray(intraday)
+              ? `${intraday.length} data points loaded`
+              : "Loading chart data..."}
           </p>
         </div>
 
@@ -82,7 +107,7 @@ export default function StockDetailPage() {
         <div className="mt-4 p-3 rounded-lg bg-zinc-800/50">
           <p className="text-sm text-zinc-300">
             {quote
-              ? `${symbol} is currently at ${formatPrice(price)}, ${isPositive ? "up" : "down"} ${formatPercent(change)} today.`
+              ? `${symbol} is currently at ${formatPrice(price)}, ${isPositive ? "up" : "down"} ${formatPercent(Math.abs(change))} from yesterday's close of ${formatPrice(prevClose)}.`
               : "Loading summary..."}
           </p>
         </div>
@@ -94,7 +119,8 @@ export default function StockDetailPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <SignalCard
             title="Volume"
-            value={quote?.volume ? `${(parseInt(quote.volume) / 1000000).toFixed(1)}M` : "--"}
+            // SDK volume is a number, not a string
+            value={quote?.volume ? `${(quote.volume / 1_000_000).toFixed(1)}M` : "--"}
             sentiment="neutral"
             explanation="Number of shares traded today. Higher volume means more interest in the stock."
           />
@@ -106,45 +132,79 @@ export default function StockDetailPage() {
           />
           <SignalCard
             title="Day Range"
-            value={quote ? `${formatPrice(parseFloat(quote.low || "0"))} - ${formatPrice(parseFloat(quote.high || "0"))}` : "--"}
+            value={quote
+              ? `${formatPrice(parseFloat(quote.low))} – ${formatPrice(parseFloat(quote.high))}`
+              : "--"}
             sentiment="neutral"
             explanation="The lowest and highest prices the stock has traded at today."
           />
           <SignalCard
             title="Market Cap"
-            value={info?.market_cap || "--"}
+            // Computed from totalShares × lastDone since staticInfo has no market_cap
+            value={marketCap ? formatMarketCapValue(marketCap) : "--"}
             sentiment="neutral"
             explanation="Total value of all the company's shares. Larger = more stable (usually)."
           />
         </div>
       </section>
 
-      {/* Overview */}
+      {/* Overview — uses only fields that exist in SecurityStaticInfo */}
       <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="text-sm font-medium text-zinc-400 mb-3">About</h2>
-        <p className="text-sm text-zinc-300 leading-relaxed">
-          {info?.description || "Loading company description..."}
-        </p>
+        <h2 className="text-sm font-medium text-zinc-400 mb-3">Security Info</h2>
 
-        {info && (
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {info ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
-              <div className="text-xs text-zinc-500"><TooltipTerm termKey="pe">P/E Ratio</TooltipTerm></div>
-              <div className="text-sm font-medium text-white">{info.pe || "--"}</div>
+              <div className="text-xs text-zinc-500">Exchange</div>
+              <div className="text-sm font-medium text-white">{info.exchange || "--"}</div>
             </div>
             <div>
-              <div className="text-xs text-zinc-500"><TooltipTerm termKey="marketCap">Market Cap</TooltipTerm></div>
-              <div className="text-sm font-medium text-white">{info.market_cap || "--"}</div>
+              <div className="text-xs text-zinc-500">Currency</div>
+              <div className="text-sm font-medium text-white">{info.currency || "--"}</div>
             </div>
             <div>
-              <div className="text-xs text-zinc-500">Industry</div>
-              <div className="text-sm font-medium text-white">{info.industry || "--"}</div>
+              <div className="text-xs text-zinc-500">Lot Size</div>
+              <div className="text-sm font-medium text-white">{info.lotSize ?? "--"}</div>
             </div>
             <div>
-              <div className="text-xs text-zinc-500">Employees</div>
-              <div className="text-sm font-medium text-white">{info.employees || "--"}</div>
+              <div className="text-xs text-zinc-500">Total Shares</div>
+              <div className="text-sm font-medium text-white">
+                {info.totalShares ? `${(info.totalShares / 1e9).toFixed(2)}B` : "--"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-zinc-500">
+                <TooltipTerm termKey="eps">EPS (TTM)</TooltipTerm>
+              </div>
+              <div className="text-sm font-medium text-white">
+                {info.epsTtm ? `$${info.epsTtm}` : "--"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-zinc-500">BPS</div>
+              <div className="text-sm font-medium text-white">
+                {info.bps ? `$${info.bps}` : "--"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-zinc-500">
+                <TooltipTerm termKey="dividendYield">Dividend / Share</TooltipTerm>
+              </div>
+              <div className="text-sm font-medium text-white">
+                {info.dividendYield ? `$${info.dividendYield}` : "--"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-zinc-500">
+                <TooltipTerm termKey="marketCap">Market Cap</TooltipTerm>
+              </div>
+              <div className="text-sm font-medium text-white">
+                {marketCap ? formatMarketCapValue(marketCap) : "--"}
+              </div>
             </div>
           </div>
+        ) : (
+          <p className="text-sm text-zinc-500">Loading security info...</p>
         )}
       </section>
 

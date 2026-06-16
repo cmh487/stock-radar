@@ -1,4 +1,4 @@
-const { getQuoteCtx, Period } = require("../lb");
+const { getQuoteCtx, Period, AdjustType, TradeSessions } = require("../lb");
 
 async function registerStockRoutes(app) {
   // GET /api/stock/:symbol/quote
@@ -7,7 +7,16 @@ async function registerStockRoutes(app) {
       const { symbol } = req.params;
       const ctx = await getQuoteCtx();
       const resp = await ctx.quote([symbol]);
-      res.json(resp[0] || null);
+      const raw = resp[0] || null;
+      if (!raw) return res.json(null);
+
+      // Compute changeRate since SDK SecurityQuote has no changeRate field
+      // changeRate = (lastDone - prevClose) / prevClose
+      const lastDone = parseFloat(raw.lastDone?.toString() || "0");
+      const prevClose = parseFloat(raw.prevClose?.toString() || "0");
+      const changeRate = prevClose !== 0 ? (lastDone - prevClose) / prevClose : 0;
+
+      res.json({ ...raw.toJSON(), changeRate: changeRate.toString() });
     } catch (err) {
       console.error("[stock/quote]", err.message);
       res.status(500).json({ error: "Failed to fetch quote" });
@@ -19,7 +28,7 @@ async function registerStockRoutes(app) {
     try {
       const { symbol } = req.params;
       const ctx = await getQuoteCtx();
-      const data = await ctx.intraday(symbol);
+      const data = await ctx.intraday(symbol, TradeSessions.Intraday);
       res.json(data);
     } catch (err) {
       console.error("[stock/intraday]", err.message);
@@ -48,9 +57,14 @@ async function registerStockRoutes(app) {
 
       const period = periodMap[periodStr] || Period.Day;
       const ctx = await getQuoteCtx();
-      const data = await ctx.candlesticks(symbol, period, count, {
-        adjustType: 1,
-      });
+      // SDK signature: candlesticks(symbol, period, count, adjustType, tradeSessions)
+      const data = await ctx.candlesticks(
+        symbol,
+        period,
+        count,
+        AdjustType.ForwardAdjust,
+        TradeSessions.Intraday
+      );
       res.json(data);
     } catch (err) {
       console.error("[stock/candles]", err.message);

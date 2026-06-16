@@ -1,4 +1,4 @@
-const { Config, QuoteContext, TradeContext, MarketContext, AlertContext, SubType, Period } = require("longbridge");
+const { Config, QuoteContext, TradeContext, MarketContext, AlertContext, SubType, Period, AdjustType, TradeSessions } = require("longbridge");
 const HttpsProxyAgent = require("https-proxy-agent");
 
 // Corporate proxy support (local dev)
@@ -68,4 +68,6 @@ module.exports = {
   getAlertCtx,
   SubType,
   Period,
+  AdjustType,
+  TradeSessions,
 };

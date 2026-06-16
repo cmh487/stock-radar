@@ -200,7 +200,8 @@ function Trending() {
           key={item.symbol}
           symbol={item.symbol}
           name={item.name}
-          price={parseFloat(item.last_done || "0")}
+          // SDK/rank API serialises as lastDone (camelCase), chg is decimal ratio
+          price={parseFloat(item.lastDone || "0")}
           changePercent={parseFloat(item.chg || "0") * 100}
         />
       ))}
