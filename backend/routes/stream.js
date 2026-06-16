@@ -31,7 +31,6 @@ async function registerStreamRoutes(app) {
 
       // Set up quote push handler
       const handler = (_, event) => {
-        console.log("🚀Harrison ~ handler ~ event:", event);
         try {
           const data = {
             type: "quote",

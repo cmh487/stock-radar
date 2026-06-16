@@ -3,23 +3,25 @@
 import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
+import type { AlertCondition, AlertGroup, AlertListResponse, CreateAlertRequest } from "./types"
 
 export default function AlertsPage() {
   const [symbol, setSymbol] = useState("")
-  const [condition, setCondition] = useState("price_rise")
+  const [condition, setCondition] = useState<AlertCondition>("price_rise")
   const [price, setPrice] = useState("")
 
-  const { data, refetch } = useQuery({
+  const { data, refetch } = useQuery<AlertListResponse>({
     queryKey: ["alerts"],
     queryFn: () => fetch("/api/alerts").then((r) => r.json()),
   })
 
   const createAlert = async () => {
     if (!symbol || !price) return
+    const body: CreateAlertRequest = { symbol, condition, price, frequency: "once" }
     await fetch("/api/alerts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol, condition, price, frequency: "once" }),
+      body: JSON.stringify(body),
     })
     setSymbol("")
     setPrice("")
@@ -69,8 +71,8 @@ export default function AlertsPage() {
 
       {/* Alert list */}
       <div className="space-y-2">
-        {data?.lists?.map((group: any) =>
-          group.indicators?.map((alert: any) => (
+        {data?.lists?.map((group: AlertGroup) =>
+          group.indicators?.map((alert) => (
             <div
               key={alert.id}
               className={cn(

@@ -1,36 +1,29 @@
-"use client"
+"use client";
 
-import { useQuery } from "@tanstack/react-query"
-import { useMemo } from "react"
-import { TemperatureGauge } from "@/components/cards/temperature-gauge"
-import { StockCard } from "@/components/cards/stock-card"
-import { useRealtimeQuotes } from "@/hooks/useRealtimeQuotes"
+import { StockCard } from "@/components/cards/stock-card";
+import { TemperatureGauge } from "@/components/cards/temperature-gauge";
+import { useApiQuery } from "@/hooks/useApiQuery";
+import { useRealtimeQuotes } from "@/hooks/useRealtimeQuotes";
+import { useMemo } from "react";
+import type { HotStocksResponse, MarketTemperatureResponse, MoversResponse } from "./types";
 
 export default function Dashboard() {
-  const { data: temperature } = useQuery({
-    queryKey: ["market-temperature"],
-    queryFn: () => fetch("/api/market/temperature").then((r) => r.json()),
-  })
-
-  const { data: movers } = useQuery({
-    queryKey: ["market-movers"],
-    queryFn: () => fetch("/api/market/movers").then((r) => r.json()),
-  })
-
-  const { data: hot } = useQuery({
-    queryKey: ["market-hot"],
-    queryFn: () => fetch("/api/market/hot?size=10").then((r) => r.json()),
-  })
+  const { data: temperature } = useApiQuery<MarketTemperatureResponse>(
+    ["market-temperature"],
+    "/api/market/temperature",
+  );
+  const { data: movers } = useApiQuery<MoversResponse>(["market-movers"], "/api/market/movers");
+  const { data: hot } = useApiQuery<HotStocksResponse>(["market-hot"], "/api/market/hot?size=10");
 
   // Collect all symbols for real-time subscription
   const allSymbols = useMemo(() => {
-    const symbols: string[] = []
-    movers?.events?.forEach((e: any) => e.stock?.symbol && symbols.push(e.stock.symbol))
-    hot?.lists?.forEach((e: any) => e.symbol && symbols.push(e.symbol))
-    return [...new Set(symbols)]
-  }, [movers, hot])
+    const symbols: string[] = [];
+    movers?.events?.forEach((e) => e.stock?.symbol && symbols.push(e.stock.symbol));
+    hot?.lists?.forEach((e) => e.symbol && symbols.push(e.symbol));
+    return [...new Set(symbols)];
+  }, [movers, hot]);
 
-  const { quotes, connected } = useRealtimeQuotes(allSymbols)
+  const { quotes, connected } = useRealtimeQuotes(allSymbols);
 
   return (
     <div className="space-y-8">
@@ -42,13 +35,13 @@ export default function Dashboard() {
         <div className="md:col-span-2 p-4 rounded-xl bg-zinc-900 border border-zinc-800">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-medium text-zinc-400">Market Summary</h2>
-            <span className={`text-xs px-2 py-0.5 rounded ${connected ? "bg-green-900 text-green-300" : "bg-zinc-800 text-zinc-500"}`}>
+            <span
+              className={`text-xs px-2 py-0.5 rounded ${connected ? "bg-green-900 text-green-300" : "bg-zinc-800 text-zinc-500"}`}
+            >
               {connected ? "Live" : "Connecting..."}
             </span>
           </div>
-          <p className="text-sm text-zinc-300">
-            {temperature?.description || "Loading market sentiment..."}
-          </p>
+          <p className="text-sm text-zinc-300">{temperature?.description || "Loading market sentiment..."}</p>
         </div>
       </section>
 
@@ -56,9 +49,9 @@ export default function Dashboard() {
       <section>
         <h2 className="text-lg font-semibold mb-3">Top Movers Today</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {movers?.events?.slice(0, 6).map((item: any) => {
-            const sym = item.stock?.symbol || ""
-            const live = quotes[sym]
+          {movers?.events?.slice(0, 6).map((item) => {
+            const sym = item.stock?.symbol || "";
+            const live = quotes[sym];
             return (
               <StockCard
                 key={sym}
@@ -68,10 +61,8 @@ export default function Dashboard() {
                 changePercent={parseFloat(item.stock?.change || "0") * 100}
                 reason={item.alert_reason}
               />
-            )
-          }) || (
-            <div className="col-span-3 text-sm text-zinc-500">Loading movers...</div>
-          )}
+            );
+          }) || <div className="col-span-3 text-sm text-zinc-500">Loading movers...</div>}
         </div>
       </section>
 
@@ -79,24 +70,22 @@ export default function Dashboard() {
       <section>
         <h2 className="text-lg font-semibold mb-3">Trending Stocks</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {hot?.lists?.slice(0, 9).map((item: any) => {
-            const sym = item.symbol || ""
-            const live = quotes[sym]
+          {hot?.lists?.slice(0, 9).map((item) => {
+            const sym = item.symbol || "";
+            const live = quotes[sym];
             return (
               <StockCard
                 key={sym}
                 symbol={sym}
                 name={item.name || ""}
-                price={parseFloat(live?.lastDone || item.last_done || "0")}
+                price={parseFloat(live?.lastDone || item.lastDone || "0")}
                 changePercent={parseFloat(item.chg || "0") * 100}
                 compact
               />
-            )
-          }) || (
-            <div className="col-span-3 text-sm text-zinc-500">Loading trending...</div>
-          )}
+            );
+          }) || <div className="col-span-3 text-sm text-zinc-500">Loading trending...</div>}
         </div>
       </section>
     </div>
-  )
+  );
 }

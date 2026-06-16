@@ -26,19 +26,6 @@ const nextConfig = {
       },
     ];
   },
-  async headers() {
-    return [
-      {
-        source: "/api/:path*",
-        headers: [
-          {
-            key: "Authorization",
-            value: `Bearer ${process.env.API_SECRET || ""}`,
-          },
-        ],
-      },
-    ];
-  },
 };
 
 module.exports = nextConfig;
