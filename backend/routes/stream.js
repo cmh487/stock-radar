@@ -36,7 +36,6 @@ async function registerStreamRoutes(app) {
         try {
           const q = event.data; // PushQuote object
           const lastDone = q.lastDone?.toString();
-          const prevClose = parseFloat(lastDone || "0");
           const data = {
             type: "quote",
             symbol: event.symbol,
@@ -49,7 +48,7 @@ async function registerStreamRoutes(app) {
             timestamp: q.timestamp?.toISOString?.() || q.timestamp?.toString(),
           };
           res.write(`data: ${JSON.stringify(data)}\n\n`);
-        } catch (e) {
+        } catch {
           // Client disconnected
         }
       };
@@ -75,7 +74,7 @@ async function registerStreamRoutes(app) {
         clearInterval(heartbeat);
         try {
           await ctx.unsubscribe(symbols, [SubType.Quote]);
-        } catch (e) {
+        } catch {
           // ignore
         }
       });

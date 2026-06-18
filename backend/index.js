@@ -93,7 +93,7 @@ registerWatchlistRoutes(app);
 registerAlertRoutes(app);
 
 // --- Error handler ---
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
   console.error("Unhandled error:", err.message);
   res.status(500).json({ error: "Internal server error" });
 });
